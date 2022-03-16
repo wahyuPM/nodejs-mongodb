@@ -17,15 +17,63 @@ class User {
   }
 
   addToCart(product) {
-    // const cartProduct = this.cart.items.findIndex(cp => {
-    //   return cp._id === product._id;
-    // })
+    const cartProductIndex = this.cart.items.findIndex(cp => { // cp = cartProduct
+      return cp.productId.toString() === product._id.toString();
+    })
+    // console.log(cartProductIndex);
 
-    const updatedCart = { items: [{ productId: new ObjectId(product._id), quantity: 1 }] };
+    let newQuantity = 1;
+    const updatedCartItems = [...this.cart.items];
+
+    if (cartProductIndex >= 0) {
+
+      newQuantity = this.cart.items[cartProductIndex].quantity + 1; // if product already in cart, add 1 to quantity
+      updatedCartItems[cartProductIndex].quantity = newQuantity; // update quantity
+    } else {
+      updatedCartItems.push({ // if product not in cart, add new product to cart
+        productId: new ObjectId(product._id),
+        quantity: newQuantity
+      })
+    }
+    const updatedCart = {
+      items: updatedCartItems // update cart
+    }
     const db = getDb();
     db.collection('users').updateOne(
       { _id: new ObjectId(this._id) },
       { $set: { cart: updatedCart } }
+    );
+  }
+
+  getCart() {
+    const db = getDb();
+    const productIds = this.cart.items.map(i => { // i = index of cart.items
+      return i.productId; // return productId from cart.items
+    })
+    return db.collection('products')
+      .find({ _id: { $in: productIds } }) // find all products in cart
+      .toArray()
+      .then(products => { // products = [product, product, product] (array of products) from database
+        return products.map(p => { // p = product
+          return {
+            ...p,
+            quantity: this.cart.items.find(i => {
+              return i.productId.toString() === p._id.toString();  // find cartItem with productId = product._id (id product pada colection products)
+            }).quantity
+          }
+        })
+      })
+      .catch(err => console.log(err));
+  }
+
+  deleteItemFromCart(productId) {
+    const updatedCartItems = this.cart.items.filter(item => {
+      return item.productId.toString() !== productId.toString(); // filter cart.items, return cart.items that not equal to productId
+    })
+    const db = getDb();
+    return db.collection('users').updateOne(
+      { _id: new ObjectId(this._id) },
+      { $set: { cart: { items: updatedCartItems } } }
     );
   }
 
@@ -34,7 +82,7 @@ class User {
     return db.collection('users')
       .findOne({ _id: new ObjectId(userId) })
       .then(user => {
-        console.log(user);
+        // console.log(user);
         return user;
       })
       .catch(err => console.log(err));
