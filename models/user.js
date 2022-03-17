@@ -18,7 +18,7 @@ class User {
 
   addToCart(product) {
     const cartProductIndex = this.cart.items.findIndex(cp => { // cp = cartProduct
-      return cp.productId.toString() === product._id.toString();
+      return cp.productId.toString() === product._id.toString(); // return index dari cart items (cek product id apa sudah ada di cart)
     })
     // console.log(cartProductIndex);
 
@@ -26,7 +26,6 @@ class User {
     const updatedCartItems = [...this.cart.items];
 
     if (cartProductIndex >= 0) {
-
       newQuantity = this.cart.items[cartProductIndex].quantity + 1; // if product already in cart, add 1 to quantity
       updatedCartItems[cartProductIndex].quantity = newQuantity; // update quantity
     } else {
@@ -75,6 +74,40 @@ class User {
       { _id: new ObjectId(this._id) },
       { $set: { cart: { items: updatedCartItems } } }
     );
+  }
+
+  addOrder() {
+    const db = getDb();
+    return this.getCart()
+      .then(products => {
+        const order = {
+          items: products,
+          user: {
+            _id: new ObjectId(this._id),
+            name: this.name
+          }
+        }
+        return db.collection('orders').insertOne(order)
+      })
+      .then(result => {
+        this.cart = { items: [] };
+        return db.collection('users').updateOne(
+          { _id: new ObjectId(this._id) },
+          { $set: { cart: { items: [] } } }
+        );
+      })
+      .catch(err => console.log(err));
+  }
+
+  getOrders() {
+    const db = getDb();
+    return db.collection('orders')
+      .find({ 'user._id': new ObjectId(this._id) })
+      .toArray()
+      .then(orders => {
+        return orders;
+      })
+      .catch(err => console.log(err));
   }
 
   static findById(userId) {
